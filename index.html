@@ -1,0 +1,396 @@
+import { useState, useEffect, useRef } from "react";
+
+const CURSE_WORDS = [
+  "fuck","shit","bitch","damn","crap","piss","cock","dick",
+  "cunt","fag","nigga","nigger","hell","hoe","bastard"
+];
+
+const RULE4_WORDS = [
+  "ho","whore","slut","ass","sex","cum","pussy","spicy","juic","ju1","horn",
+  ...CURSE_WORDS
+];
+
+const RULE5_NUMS  = ["94","95","96","98"];
+const RULE6_WORDS = ["bad","boo","jess","crystal","bam","destiny","divine"];
+const RULE7_WORDS = [
+  "astr","light","l1","l!","bright","love","baby","cat","kat",
+  "girl","chick","ch1","witch","w1","mad","mermaid","pai","christ"
+];
+const RULE8_WORDS = ["good","ex","me","m3","mi","des","ki","key","k5","chas","ash","rach"];
+
+function isValidInstagramUsername(raw) {
+  const u = raw.trim();
+  if (u.length < 1 || u.length > 30) return false;
+  if (!/^[a-zA-Z0-9._]+$/.test(u)) return false;
+  if (/\.\./.test(u)) return false;
+  if (u.startsWith(".") || u.endsWith(".")) return false;
+  return true;
+}
+
+function calcScore(raw) {
+  const u = raw.toLowerCase();
+  let score = 1;
+
+  // +1 per e/n/w/k/5
+  for (const ch of u) {
+    if (["e","n","w","k","5"].includes(ch)) score += 1;
+  }
+
+  // +1 if any char repeats 3+ times consecutively
+  if (/(.)\1{2,}/i.test(raw)) score += 1;
+
+  // +6 for spicy/curse words
+  for (const w of RULE4_WORDS) {
+    if (u.includes(w)) { score += 6; break; }
+  }
+
+  // +5 for birth years
+  for (const n of RULE5_NUMS) {
+    if (u.includes(n)) { score += 5; break; }
+  }
+
+  // +4 for name/vibe words
+  for (const w of RULE6_WORDS) {
+    if (u.includes(w)) { score += 4; break; }
+  }
+
+  // +3 for aesthetic/identity words
+  for (const w of RULE7_WORDS) {
+    if (u.includes(w)) { score += 3; break; }
+  }
+
+  // +2 for softcore words
+  for (const w of RULE8_WORDS) {
+    if (u.includes(w)) { score += 2; break; }
+  }
+
+  // +0.5 per c, l, u, _, or .
+  for (const ch of u) {
+    if (["c","l","u","_","."].includes(ch)) score += 0.5;
+  }
+
+  return Math.min(score, 10);
+}
+
+const TIER_DATA = [
+  { min: 1,   max: 2.4, label: "Pure as Snow",          emoji: "😇", color: "#a8d8ea", desc: "Suspiciously innocent. Are you even real?" },
+  { min: 2.5, max: 4.4, label: "Lil Curious",           emoji: "🤔", color: "#b8f0c8", desc: "You've thought about it. We know." },
+  { min: 4.5, max: 5.9, label: "Hoe in Training",       emoji: "📚", color: "#ffe08a", desc: "Currently enrolled. Graduation pending." },
+  { min: 6,   max: 7.4, label: "Seasoned Professional", emoji: "💅", color: "#ffb347", desc: "The résumé speaks for itself." },
+  { min: 7.5, max: 8.9, label: "Advanced Hoe",          emoji: "🌶️", color: "#ff6b6b", desc: "Mentor. Icon. Legend." },
+  { min: 9,   max: 10,  label: "CERTIFIED HOE™",        emoji: "🔥", color: "#ff2d6b", desc: "The algorithm has never been more certain." },
+];
+
+function getTier(score) {
+  return TIER_DATA.find(t => score >= t.min && score <= t.max) || TIER_DATA[0];
+}
+
+function fmtScore(s) {
+  return Number.isInteger(s) ? String(s) : s.toFixed(1);
+}
+
+const LOADING_MSGS = [
+  "🔍 Cross-referencing the Hoe Index...",
+  "📡 Pinging the Thot Database...",
+  "🧬 Analyzing username DNA...",
+  "📊 Calibrating the Ho-Meter...",
+  "🕵️ Running a full background check...",
+  "💻 Hacking the mainframe...",
+  "✨ Consulting the Council of Hoes...",
+  "📂 Reviewing your file...",
+  "🔬 Running final analysis...",
+  "📈 Crunching the numbers...",
+  "🗂️ Cross-checking the archives...",
+];
+
+export default function HoDometer() {
+  const [username, setUsername]       = useState("");
+  const [phase, setPhase]             = useState("idle");
+  const [score, setScore]             = useState(null);
+  const [msgIndex, setMsgIndex]       = useState(0);
+  const [displayScore, setDisplayScore] = useState(0);
+  const [particles, setParticles]     = useState([]);
+  const intervalRef   = useRef(null);
+  const scoreStepRef  = useRef(null);
+
+  useEffect(() => {
+    setParticles(Array.from({ length: 30 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: 1 + Math.random() * 2.5,
+      delay: Math.random() * 4,
+      dur: 2 + Math.random() * 3,
+      color: ["#ff69b4","#fff","#ff2d6b","#ffb347","#e879f9"][Math.floor(Math.random()*5)],
+    })));
+  }, []);
+
+  const handleSearch = () => {
+    const trimmed = username.trim();
+    if (!trimmed || phase === "searching") return;
+    if (!isValidInstagramUsername(trimmed)) { setPhase("error"); return; }
+
+    setPhase("searching");
+    setScore(null);
+    setMsgIndex(0);
+
+    let idx = 0;
+    intervalRef.current = setInterval(() => {
+      idx = (idx + 1) % LOADING_MSGS.length;
+      setMsgIndex(idx);
+    }, 750);
+
+    setTimeout(() => {
+      clearInterval(intervalRef.current);
+      const s = calcScore(trimmed);
+      setScore(s);
+      setDisplayScore(0);
+      setPhase("result");
+
+      let step = 0;
+      const steps = 20;
+      clearInterval(scoreStepRef.current);
+      scoreStepRef.current = setInterval(() => {
+        step++;
+        const eased = 1 - Math.pow(1 - step / steps, 3);
+        setDisplayScore(parseFloat((eased * s).toFixed(1)));
+        if (step >= steps) { clearInterval(scoreStepRef.current); setDisplayScore(s); }
+      }, 60);
+    }, 8200);
+  };
+
+  const handleReset = () => {
+    clearInterval(intervalRef.current);
+    clearInterval(scoreStepRef.current);
+    setPhase("idle");
+    setScore(null);
+    setUsername("");
+    setDisplayScore(0);
+  };
+
+  const tier = score !== null ? getTier(score) : null;
+  const displayNeedlePct = Math.max(0, Math.min(1, (displayScore - 1) / 9));
+
+  return (
+    <div style={{
+      minHeight:"100vh", background:"#0c0010",
+      display:"flex", flexDirection:"column",
+      alignItems:"center", justifyContent:"center",
+      fontFamily:"'Georgia','Times New Roman',serif",
+      padding:"24px 16px", position:"relative", overflow:"hidden",
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,900&family=Courier+Prime:wght@400;700&display=swap');
+        * { box-sizing:border-box; }
+        @keyframes twinkle { 0%,100%{opacity:.15;transform:scale(1)} 50%{opacity:1;transform:scale(1.5)} }
+        @keyframes fadeUp  { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes popIn   { 0%{opacity:0;transform:scale(0.3)} 65%{transform:scale(1.12)} 100%{opacity:1;transform:scale(1)} }
+        @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
+        @keyframes scanline{ 0%{transform:translateY(-100%)} 100%{transform:translateY(100vh)} }
+        @keyframes msgFade { 0%{opacity:0;transform:translateY(5px)} 15%{opacity:1;transform:translateY(0)} 80%{opacity:1} 100%{opacity:0} }
+        @keyframes spin    { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes growBar { from{transform:scaleX(0)} to{transform:scaleX(1)} }
+        @keyframes errPop  { 0%{opacity:0;transform:scale(.85)} 60%{transform:scale(1.04)} 100%{opacity:1;transform:scale(1)} }
+
+        .title-text {
+          font-family:'Playfair Display',serif;
+          font-weight:900; font-style:italic;
+          font-size:clamp(2.4rem,9vw,5rem);
+          background:linear-gradient(90deg,#ff69b4 0%,#ff2d6b 30%,#ff9f43 60%,#e879f9 85%,#ff69b4 100%);
+          background-size:300% auto;
+          -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+          animation:shimmer 4s linear infinite;
+          letter-spacing:1px; line-height:1;
+        }
+        .card {
+          background:rgba(255,255,255,0.03);
+          border:1px solid rgba(255,45,107,0.2);
+          border-radius:20px; padding:32px 28px;
+          width:100%; max-width:430px;
+          backdrop-filter:blur(12px);
+        }
+        .input-wrap {
+          display:flex; align-items:center;
+          background:rgba(255,255,255,0.05);
+          border:1.5px solid rgba(255,45,107,0.35);
+          border-radius:12px; overflow:hidden;
+          transition:border-color .2s,box-shadow .2s;
+        }
+        .input-wrap:focus-within{border-color:#ff2d6b;box-shadow:0 0 20px #ff2d6b33}
+        .at-sign{padding:0 12px;color:#ff69b4;font-family:'Courier Prime',monospace;font-size:1.1rem;user-select:none}
+        .u-input{flex:1;background:transparent;border:none;outline:none;color:#fff;font-family:'Courier Prime',monospace;font-size:1rem;padding:14px 0;caret-color:#ff2d6b}
+        .u-input::placeholder{color:rgba(255,105,180,.35)}
+        .rate-btn{background:linear-gradient(135deg,#ff2d6b,#ff6b2d);border:none;color:#fff;font-family:'Playfair Display',serif;font-weight:700;font-size:.85rem;letter-spacing:1px;padding:14px 20px;cursor:pointer;transition:opacity .2s,transform .1s;white-space:nowrap}
+        .rate-btn:hover:not(:disabled){opacity:.88;transform:scale(1.02)}
+        .rate-btn:active:not(:disabled){transform:scale(.97)}
+        .rate-btn:disabled{opacity:.4;cursor:not-allowed}
+        .loading-msg{font-family:'Courier Prime',monospace;color:#ff69b4;font-size:.85rem;text-align:center;animation:msgFade .75s ease forwards;min-height:24px}
+        .score-big{font-family:'Playfair Display',serif;font-weight:900;font-size:5.5rem;line-height:1;animation:popIn .55s cubic-bezier(0.34,1.56,0.64,1) forwards}
+        .tier-label{font-family:'Playfair Display',serif;font-weight:700;font-style:italic;font-size:1.4rem;animation:fadeUp .4s .2s both}
+        .reset-btn{background:transparent;border:1px solid rgba(255,45,107,.4);color:#ff69b4;font-family:'Courier Prime',monospace;font-size:.8rem;letter-spacing:2px;padding:10px 24px;border-radius:8px;cursor:pointer;transition:all .2s;text-transform:uppercase}
+        .reset-btn:hover{background:rgba(255,45,107,.1);border-color:#ff2d6b;color:#fff}
+        .lbl{font-family:'Courier Prime',monospace;color:rgba(255,255,255,.5);font-size:.75rem;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+      `}</style>
+
+      {/* Stars */}
+      {particles.map(p => (
+        <div key={p.id} style={{
+          position:"fixed", left:`${p.x}%`, top:`${p.y}%`,
+          width:`${p.size}px`, height:`${p.size}px`,
+          borderRadius:"50%", background:p.color,
+          animation:`twinkle ${p.dur}s ${p.delay}s infinite`,
+          pointerEvents:"none",
+        }}/>
+      ))}
+
+      {/* Scanline */}
+      <div style={{
+        position:"fixed",top:0,left:0,right:0,height:"60px",
+        background:"linear-gradient(transparent,rgba(255,45,107,.04),transparent)",
+        animation:"scanline 6s linear infinite",
+        pointerEvents:"none",zIndex:0,
+      }}/>
+
+      {/* Header */}
+      <div style={{textAlign:"center",marginBottom:"32px",animation:"fadeUp .6s both"}}>
+        <div className="title-text">THE HO-DOMETER</div>
+        <div style={{fontFamily:"'Courier Prime',monospace",color:"rgba(255,255,255,.15)",fontSize:".65rem",marginTop:"10px",letterSpacing:"3px"}}>
+          FOR COMEDY PURPOSES ONLY
+        </div>
+      </div>
+
+      {/* Card */}
+      <div className="card" style={{animation:"fadeUp .6s .1s both"}}>
+
+        {/* IDLE */}
+        {phase === "idle" && (
+          <>
+            <div className="lbl">Enter Instagram Username</div>
+            <div className="input-wrap">
+              <span className="at-sign">@</span>
+              <input
+                className="u-input"
+                placeholder="your_username_here"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleSearch()}
+                maxLength={40}
+              />
+              <button className="rate-btn" onClick={handleSearch} disabled={!username.trim()}>
+                RATE ME
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ERROR */}
+        {phase === "error" && (
+          <div style={{textAlign:"center",animation:"errPop .35s ease forwards"}}>
+            <div style={{fontSize:"2.8rem",marginBottom:"14px"}}>⛔</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontStyle:"italic",color:"#ff4444",fontSize:"1.15rem",marginBottom:"10px"}}>
+              Invalid Username
+            </div>
+            <div style={{fontFamily:"'Courier Prime',monospace",color:"rgba(255,255,255,.5)",fontSize:".85rem",marginBottom:"6px",lineHeight:1.7}}>
+              You must type in a valid Instagram username.
+            </div>
+            <div style={{fontFamily:"'Courier Prime',monospace",color:"rgba(255,255,255,.22)",fontSize:".7rem",marginBottom:"26px",lineHeight:1.6}}>
+              1–30 characters · letters, numbers,<br/>underscores &amp; periods only
+            </div>
+            <button className="reset-btn" onClick={handleReset}>↩ Try Again</button>
+          </div>
+        )}
+
+        {/* SEARCHING */}
+        {phase === "searching" && (
+          <>
+            <div className="lbl">Enter Instagram Username</div>
+            <div className="input-wrap" style={{marginBottom:"20px"}}>
+              <span className="at-sign">@</span>
+              <input className="u-input" value={username} disabled/>
+              <button className="rate-btn" disabled>...</button>
+            </div>
+            <div style={{textAlign:"center"}}>
+              <div style={{
+                width:"44px",height:"44px",borderRadius:"50%",
+                border:"3px solid rgba(255,45,107,.15)",
+                borderTop:"3px solid #ff2d6b",
+                margin:"0 auto 16px",
+                animation:"spin .8s linear infinite",
+              }}/>
+              <div className="loading-msg" key={msgIndex}>{LOADING_MSGS[msgIndex]}</div>
+              <div style={{marginTop:"18px",height:"3px",background:"rgba(255,255,255,.07)",borderRadius:"99px",overflow:"hidden"}}>
+                <div style={{
+                  height:"100%",
+                  background:"linear-gradient(90deg,#ff2d6b,#ff9f43,#e879f9)",
+                  borderRadius:"99px",width:"100%",
+                  transformOrigin:"left",transform:"scaleX(0)",
+                  animation:"growBar 8.2s linear forwards",
+                }}/>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* RESULT */}
+        {phase === "result" && score !== null && tier && (
+          <div style={{textAlign:"center"}}>
+            <div style={{width:"220px",margin:"0 auto 10px"}}>
+              <svg viewBox="0 0 220 120" width="220" height="120">
+                <defs>
+                  <linearGradient id="arcG" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#a8d8ea"/>
+                    <stop offset="40%" stopColor="#ffe08a"/>
+                    <stop offset="70%" stopColor="#ff6b6b"/>
+                    <stop offset="100%" stopColor="#ff2d6b"/>
+                  </linearGradient>
+                </defs>
+                <path d="M 18 110 A 92 92 0 0 1 202 110" fill="none" stroke="rgba(255,255,255,.07)" strokeWidth="18" strokeLinecap="round"/>
+                <path d="M 18 110 A 92 92 0 0 1 202 110" fill="none" stroke="url(#arcG)" strokeWidth="18" strokeLinecap="round" opacity=".85"/>
+                {[1,3,5,7,10].map(v => {
+                  const a = (-180 + ((v-1)/9)*180)*Math.PI/180;
+                  const r=92,cx=110,cy=110;
+                  return <line key={v} x1={cx+r*Math.cos(a)} y1={cy+r*Math.sin(a)} x2={cx+(r-14)*Math.cos(a)} y2={cy+(r-14)*Math.sin(a)} stroke="rgba(255,255,255,.35)" strokeWidth="1.5"/>;
+                })}
+                <g style={{
+                  transformOrigin:"110px 110px",
+                  transform:`rotate(${-90 + displayNeedlePct * 180}deg)`,
+                  transition:"transform .06s ease-out",
+                }}>
+                  <line x1="110" y1="110" x2="110" y2="28" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" opacity=".9"/>
+                </g>
+                <circle cx="110" cy="110" r="7" fill="#ff2d6b"/>
+                <circle cx="110" cy="110" r="3.5" fill="#fff"/>
+                <text x="10" y="118" fill="rgba(255,255,255,.3)" fontSize="9" fontFamily="Courier Prime,monospace">1</text>
+                <text x="193" y="118" fill="#ff2d6b" fontSize="9" fontFamily="Courier Prime,monospace">10</text>
+              </svg>
+            </div>
+
+            <div style={{display:"flex",alignItems:"baseline",justifyContent:"center",gap:"6px",marginBottom:"6px"}}>
+              <div className="score-big" style={{color:tier.color}}>{fmtScore(displayScore)}</div>
+              <div style={{fontFamily:"'Courier Prime',monospace",color:"rgba(255,255,255,.3)",fontSize:"1.3rem"}}>/10</div>
+            </div>
+
+            <div style={{fontFamily:"'Courier Prime',monospace",color:"rgba(255,255,255,.28)",fontSize:".78rem",marginBottom:"10px",animation:"fadeUp .3s both"}}>
+              @{username.trim()}
+            </div>
+
+            <div className="tier-label" style={{color:tier.color,marginBottom:"6px"}}>
+              {tier.emoji} {tier.label} {tier.emoji}
+            </div>
+            <div style={{fontFamily:"'Courier Prime',monospace",color:"rgba(255,255,255,.45)",fontSize:".82rem",marginBottom:"28px",animation:"fadeUp .4s .25s both"}}>
+              {tier.desc}
+            </div>
+
+            <button className="reset-btn" onClick={handleReset}>↩ Try Another</button>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{fontFamily:"'Courier Prime',monospace",color:"rgba(255,255,255,.1)",fontSize:".6rem",marginTop:"24px",letterSpacing:"2px",textAlign:"center",animation:"fadeUp .6s .3s both"}}>
+        HO-DOMETER™ IS NOT RESPONSIBLE FOR ANY FEELINGS
+      </div>
+    </div>
+  );
+}
+
